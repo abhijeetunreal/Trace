@@ -15,13 +15,13 @@ val tauriProperties = Properties().apply {
 }
 
 android {
-    compileSdk = 37
+    compileSdk = 34
     namespace = "com.codefry.trace"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
         applicationId = "com.codefry.trace"
         minSdk = 24
-        targetSdk = 37
+        targetSdk = 34
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
