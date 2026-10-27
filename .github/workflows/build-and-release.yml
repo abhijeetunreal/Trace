@@ -67,7 +67,7 @@ jobs:
           echo "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/25.2.9519653" >> $GITHUB_ENV
           echo "NDK_HOME=/usr/local/lib/android/sdk/ndk/25.2.9519653" >> $GITHUB_ENV
           yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "ndk;25.2.9519653" "build-tools;34.0.0" "platforms;android-34"
+          /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "ndk;25.2.9519653" "build-tools;35.0.0" "platforms;android-35" "platforms;android-34"
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
