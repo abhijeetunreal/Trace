@@ -15,7 +15,7 @@ val tauriProperties = Properties().apply {
 }
 
 android {
-    compileSdk = 35
+    compileSdk = 36
     namespace = "com.codefry.trace"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
