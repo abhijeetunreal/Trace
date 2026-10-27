@@ -2,14 +2,17 @@ name: Build Android APK & Release
 
 on:
   push:
+    branches:
+      - main
+      - master
     tags:
       - 'v*'
   workflow_dispatch:
     inputs:
       version:
         description: 'Release version (e.g. 1.0.0)'
-        required: true
-        default: '1.0.0'
+        required: false
+        default: ''
       prerelease:
         description: 'Mark as pre-release'
         required: false
@@ -18,15 +21,24 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
-  build-apk:
-    name: Build & Package Android APK
+  build-and-release:
+    name: Build APK & Publish Release
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       - name: Setup Java JDK 17
         uses: actions/setup-java@v4
@@ -37,11 +49,12 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android NDK & Build Tools
+      - name: Install Android NDK & Platform Tools
         run: |
           yes | sdkmanager --install "ndk;25.2.9519653" "build-tools;34.0.0" "platforms;android-34"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
-          echo "NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
+          echo "NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -53,79 +66,97 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-
       - name: Install npm dependencies
         run: npm install
 
-      - name: Extract Version
+      - name: Determine Release Version
         id: get_version
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ -n "${{ github.event.inputs.version }}" ]; then
             VERSION="${{ github.event.inputs.version }}"
-          else
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF_NAME#v}"
+          else
+            BASE_VERSION=$(node -p "require('./package.json').version")
+            VERSION="${BASE_VERSION}.${{ github.run_number }}"
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
 
       - name: Run Cargo Workspace Tests
         run: cargo test --workspace --verbose
 
-      - name: Initialize Android Project (if not generated)
+      - name: Make Gradle Wrapper Executable
+        run: |
+          if [ -f "src-tauri/gen/android/gradlew" ]; then
+            chmod +x src-tauri/gen/android/gradlew
+          fi
+
+      - name: Initialize Android Project (if missing)
         run: |
           if [ ! -d "src-tauri/gen/android" ]; then
             npx @tauri-apps/cli android init
+            chmod +x src-tauri/gen/android/gradlew
           fi
 
-      - name: Build Android APKs via Tauri
+      - name: Build Android APK via Tauri
         env:
           NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
         run: |
           npx @tauri-apps/cli android build --apk
 
-      - name: Prepare & Sign Release Artifacts
-        id: prepare_artifacts
+      - name: Package & Sign Android APKs
+        id: package_apks
         run: |
           mkdir -p release-artifacts
-          
-          # Find generated APKs
-          APK_PATHS=$(find src-tauri/gen/android -name "*.apk")
+
+          # Locate all built APK files
+          APK_PATHS=$(find src-tauri/gen/android -name "*.apk" -type f)
           echo "Found APKs:"
           echo "$APK_PATHS"
 
-          # Create a keystore if one doesn't exist to sign the APK for direct installation
+          # Generate signing keystore for production-ready installable APKs
           keytool -genkeypair -v -keystore release.jks -alias trace-release \
             -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass tracepassword -keypass tracepassword \
             -dname "CN=Trace, OU=Mobile, O=Codefry, C=US"
 
-          COUNT=0
           for APK in $APK_PATHS; do
-            COUNT=$((COUNT + 1))
             BASENAME=$(basename "$APK")
-            
-            # Sign APK with apksigner or jarsigner
+            TARGET="release-artifacts/trace-v${{ env.VERSION }}-${BASENAME}"
+
             jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
               -keystore release.jks -storepass tracepassword -keypass tracepassword \
-              -signedjar "release-artifacts/trace-v${{ env.VERSION }}-${BASENAME}" "$APK" trace-release
+              -signedjar "$TARGET" "$APK" trace-release
           done
 
-          # Also create a standardized universal APK copy
+          # Create standardized universal & canonical APK copies
           FIRST_APK=$(ls release-artifacts/*.apk | head -n 1)
           if [ -f "$FIRST_APK" ]; then
             cp "$FIRST_APK" "release-artifacts/trace-v${{ env.VERSION }}-universal.apk"
+            cp "$FIRST_APK" "release-artifacts/trace-universal.apk"
           fi
 
-          # Compute SHA256 Checksums
+          # Generate SHA256 Checksums
           cd release-artifacts
           sha256sum *.apk > SHA256SUMS.txt
           cat SHA256SUMS.txt
           cd ..
+
+      - name: Update Landing Page with Release Download URL
+        run: |
+          REPO="${{ github.repository }}"
+          DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${{ env.VERSION }}/trace-v${{ env.VERSION }}-universal.apk"
+          LATEST_CANONICAL_URL="https://github.com/${REPO}/releases/latest/download/trace-universal.apk"
+          
+          echo "Updating landing page download URL to: $DOWNLOAD_URL"
+
+          # Replace release links and badges in landing_page/index.html
+          sed -i "s|https://github.com/[^/\"']*/[^/\"']*/releases/latest/download/[^\"' ]*|$DOWNLOAD_URL|g" landing_page/index.html
+          sed -i "s|https://github.com/[^/\"']*/[^/\"']*/releases/download/[^\"' ]*|$DOWNLOAD_URL|g" landing_page/index.html
+          sed -i "s|Trace v[0-9]*\.[0-9]*\.[0-9]*[a-zA-Z0-9.-]*|Trace v${{ env.VERSION }}|g" landing_page/index.html
+          sed -i "s|trace-v[0-9]*\.[0-9]*\.[0-9]*[a-zA-Z0-9.-]*-universal\.apk|trace-v${{ env.VERSION }}-universal.apk|g" landing_page/index.html
 
       - name: Generate Release Notes
         id: release_notes
@@ -135,7 +166,12 @@ jobs:
 
           High-precision, offline-first GPS telemetry blackbox and vector route visualizer built with **Rust 2021** and **Tauri v2 Mobile**.
 
-          ### ✨ Key Features in this Release
+          ### 📦 Direct Downloads
+          - 📱 **[Download Universal APK (All Android Devices)](https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION }}/trace-v${{ env.VERSION }}-universal.apk)**
+          - ⚡ **[Download Canonical APK](https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION }}/trace-universal.apk)**
+          - 🔒 **[SHA256 Checksums](https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION }}/SHA256SUMS.txt)**
+
+          ### ✨ Key Features
           - **Pure Rust Telemetry Engine**: Sub-meter haversine geodesy, velocity smoothing, and elevation gradient calculation.
           - **OpenFreeMap Vector Tiles**: High-performance offline and online vector map playback with Apple dark/light styling.
           - **Tactile Telemetry Scrubber**: Dynamic elevation and speed sparkline synchronized with a high-contrast location beacon.
@@ -143,21 +179,18 @@ jobs:
           - **Screen-Off Keep-Alive**: AudioContext oscillator and WakeLock API prevent OS throttling during telemetry logging.
           - **100% Private & On-Device**: Zero tracking, zero ads, zero external server dependencies.
 
-          ### 📦 Android Installation Instructions
-          1. Download `trace-v${{ env.VERSION }}-universal.apk` below.
-          2. Open the downloaded file on your Android device.
-          3. When prompted, select **Settings** and allow **Install unknown apps** for your browser/files app.
-          4. Open Trace and grant **Location** permission to start recording telemetry!
-
-          ### 🔒 Checksums (SHA-256)
-          Verify package integrity using `sha256sum -c SHA256SUMS.txt`.
+          ### 📲 Android Installation Instructions
+          1. Tap **trace-v${{ env.VERSION }}-universal.apk** above to download.
+          2. Open the downloaded file from your notifications or Files app.
+          3. Tap **Settings** and allow **Install unknown apps** if prompted.
+          4. Open Trace and grant **Location** permission to start recording!
           EOF
           sed -i "s/\${{ env.VERSION }}/${{ env.VERSION }}/g" RELEASE_NOTES.md
 
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name || format('v{0}', env.VERSION) }}
+          tag_name: v${{ env.VERSION }}
           name: Trace GPS Telemetry v${{ env.VERSION }}
           body_path: RELEASE_NOTES.md
           draft: false
@@ -165,3 +198,18 @@ jobs:
           files: |
             release-artifacts/*.apk
             release-artifacts/SHA256SUMS.txt
+
+      - name: Commit Updated Landing Page to Repository
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add landing_page/index.html
+          git diff-index --quiet HEAD || git commit -m "chore(release): update landing page for v${{ env.VERSION }} [skip ci]"
+          git push origin HEAD || echo "Push skipped or branch protected"
+
+      - name: Deploy Landing Page to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./landing_page
+          force_orphan: true
