@@ -159,22 +159,28 @@ jobs:
 
       - name: Update Landing Page with Release Download URL
         run: |
-          REPO="${{ github.repository }}"
-          DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${{ env.VERSION }}/trace-v${{ env.VERSION }}-universal.apk"
-          LATEST_CANONICAL_URL="https://github.com/${REPO}/releases/latest/download/trace-universal.apk"
-          
-          echo "Updating landing page download URL to: $DOWNLOAD_URL"
+          python3 -c "
+          import re
+          version = '${{ env.VERSION }}'
+          repo = '${{ github.repository }}'
+          download_url = f'https://github.com/{repo}/releases/download/v{version}/trace-v{version}-universal.apk'
 
-          # Replace release links and badges in landing_page/index.html
-          sed -i "s|https://github.com/[^/\"']*/[^/\"']*/releases/latest/download/[^\"' ]*|$DOWNLOAD_URL|g" landing_page/index.html
-          sed -i "s|https://github.com/[^/\"']*/[^/\"']*/releases/download/[^\"' ]*|$DOWNLOAD_URL|g" landing_page/index.html
-          sed -i "s|Trace v[0-9]*\.[0-9]*\.[0-9]*[a-zA-Z0-9.-]*|Trace v${{ env.VERSION }}|g" landing_page/index.html
-          sed -i "s|trace-v[0-9]*\.[0-9]*\.[0-9]*[a-zA-Z0-9.-]*-universal\.apk|trace-v${{ env.VERSION }}-universal.apk|g" landing_page/index.html
+          with open('landing_page/index.html', 'r', encoding='utf-8') as f:
+              content = f.read()
+
+          content = re.sub(r'https://github\.com/[^/\"\'\s]+/[^/\"\'\s]+/releases/(?:latest/download|download)/[^\"\'\s]+', download_url, content)
+          content = re.sub(r'Trace v[0-9a-zA-Z.\-]+', f'Trace v{version}', content)
+          content = re.sub(r'trace-v[0-9a-zA-Z.\-]*-universal\.apk', f'trace-v{version}-universal.apk', content)
+
+          with open('landing_page/index.html', 'w', encoding='utf-8') as f:
+              f.write(content)
+          print(f'Successfully updated landing_page/index.html for {repo} v{version}')
+          "
 
       - name: Generate Release Notes
         id: release_notes
         run: |
-          cat << 'EOF' > RELEASE_NOTES.md
+          cat << EOF > RELEASE_NOTES.md
           # 🛰️ TRACE — Precision Mobile GPS Telemetry Blackbox v${{ env.VERSION }}
 
           High-precision, offline-first GPS telemetry blackbox and vector route visualizer built with **Rust 2021** and **Tauri v2 Mobile**.
@@ -198,7 +204,6 @@ jobs:
           3. Tap **Settings** and allow **Install unknown apps** if prompted.
           4. Open Trace and grant **Location** permission to start recording!
           EOF
-          sed -i "s/\${{ env.VERSION }}/${{ env.VERSION }}/g" RELEASE_NOTES.md
 
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
