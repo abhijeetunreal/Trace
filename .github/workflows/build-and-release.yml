@@ -35,6 +35,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install Linux GUI & Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libglib2.0-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -46,15 +61,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android NDK & Platform Tools
+      - name: Setup Android SDK & NDK
         run: |
-          yes | sdkmanager --install "ndk;25.2.9519653" "build-tools;34.0.0" "platforms;android-34"
-          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
-          echo "NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
+          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/25.2.9519653" >> $GITHUB_ENV
+          echo "NDK_HOME=/usr/local/lib/android/sdk/ndk/25.2.9519653" >> $GITHUB_ENV
+          yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "ndk;25.2.9519653" "build-tools;34.0.0" "platforms;android-34"
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
