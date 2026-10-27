@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRACE — Precision Mobile GPS Telemetry Blackbox in Rust</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        ios: {
+                            blue: '#007AFF',
+                            green: '#34C759',
+                            red: '#FF3B30',
+                            orange: '#FF9500',
+                            darkCard: '#1C1C1E',
+                            darkElevated: '#2C2C2E',
+                            borderDark: 'rgba(255, 255, 255, 0.08)'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        .glow-blue {
+            box-shadow: 0 0 50px -10px rgba(0, 122, 255, 0.35);
+        }
+        .glow-green {
+            box-shadow: 0 0 35px -8px rgba(52, 199, 89, 0.3);
+        }
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.05); }
+        }
+        .pulse-beacon {
+            animation: pulse-subtle 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-black text-white font-sans antialiased selection:bg-ios-blue/30 selection:text-white">
+
+    <!-- Ambient Gradient Backdrops -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div class="absolute -top-[20%] left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-gradient-to-b from-blue-600/15 via-blue-900/5 to-transparent rounded-full blur-3xl"></div>
+        <div class="absolute top-[40%] -right-[10%] w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-[10%] -left-[10%] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-3xl"></div>
+    </div>
+
+    <!-- Navigation Header -->
+    <header class="relative z-50 max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
+        <a href="#" class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 p-0.5 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                <div class="w-full h-full rounded-[10px] bg-black flex items-center justify-center">
+                    <div class="w-2.5 h-2.5 rounded-full bg-ios-blue pulse-beacon"></div>
+                </div>
+            </div>
+            <div class="flex items-baseline gap-2">
+                <span class="font-extrabold text-xl tracking-tight">TRACE</span>
+                <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded-md bg-white/10 text-zinc-400 font-semibold tracking-wider">RUST CORE</span>
+            </div>
+        </a>
+
+        <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
+            <a href="#features" class="hover:text-white transition">Features</a>
+            <a href="#specs" class="hover:text-white transition">Telemetry Specs</a>
+            <a href="#install" class="hover:text-white transition">Installation</a>
+            <a href="#faq" class="hover:text-white transition">FAQ</a>
+        </nav>
+
+        <div class="flex items-center gap-3">
+            <a href="https://github.com" target="_blank" class="hidden sm:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-zinc-300 transition">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                <span>GitHub</span>
+            </a>
+            <a href="#download" class="px-4 py-2 rounded-xl bg-ios-blue hover:bg-blue-500 font-semibold text-xs tracking-tight shadow-md shadow-blue-500/25 active:scale-95 transition flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span>Download APK</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="relative z-10">
+
+        <!-- Hero Section -->
+        <section class="max-w-6xl mx-auto px-6 pt-12 pb-20 text-center flex flex-col items-center">
+            
+            <!-- Badges Pill -->
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10 text-xs font-medium text-zinc-300 mb-8 backdrop-blur-md">
+                <span class="w-2 h-2 rounded-full bg-ios-green pulse-beacon"></span>
+                <span>Trace v1.0.0</span>
+                <span class="text-zinc-600">•</span>
+                <span class="text-zinc-400">Pure Rust + Tauri Mobile</span>
+                <span class="text-zinc-600">•</span>
+                <span class="text-ios-blue font-semibold">100% Offline</span>
+            </div>
+
+            <h1 class="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight max-w-4xl leading-[1.08] mb-6">
+                Precision GPS Blackbox. <br />
+                <span class="bg-gradient-to-r from-blue-400 via-sky-300 to-emerald-400 bg-clip-text text-transparent">Built in Rust.</span>
+            </h1>
+
+            <p class="text-base sm:text-lg text-zinc-400 max-w-2xl leading-relaxed mb-10">
+                Military-grade GNSS geodesy, dynamic speed and elevation gradient scrubbers, vector map playback, and instant GPX / GeoJSON export. Zero ads, zero tracking, zero cloud accounts.
+            </p>
+
+            <!-- Download & Call To Action Buttons -->
+            <div class="flex flex-col sm:flex-row items-center gap-4 w-full justify-center max-w-md mb-16" id="download">
+                <a id="primaryDownloadBtn" href="https://github.com/abhij/Trace/releases/latest/download/trace-v1.0.0-universal.apk" 
+                   onclick="handleDownloadClick(event)"
+                   class="w-full sm:w-auto px-7 py-4 rounded-2xl bg-ios-blue hover:bg-blue-500 font-semibold text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-blue-500/25 active:scale-[0.98] transition">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <span>Download APK for Android</span>
+                </a>
+
+                <a href="#live-demo" class="w-full sm:w-auto px-6 py-4 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 font-semibold text-sm text-zinc-200 flex items-center justify-center gap-2 active:scale-[0.98] transition">
+                    <svg class="w-4 h-4 text-ios-green" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    <span>Try Live Simulator</span>
+                </a>
+            </div>
+
+            <!-- Download Architecture Sub-links -->
+            <div class="flex flex-wrap items-center justify-center gap-4 text-xs font-mono text-zinc-500">
+                <span>Direct Downloads:</span>
+                <a href="https://github.com/abhij/Trace/releases/latest/download/trace-v1.0.0-universal.apk" class="text-zinc-400 hover:text-ios-blue transition underline underline-offset-4">Universal APK (64-bit / 32-bit)</a>
+                <span>•</span>
+                <a href="https://github.com/abhij/Trace/releases/latest/download/trace-v1.0.0-arm64-v8a.apk" class="text-zinc-400 hover:text-ios-blue transition underline underline-offset-4">arm64-v8a</a>
+                <span>•</span>
+                <a href="https://github.com/abhij/Trace/releases/latest/download/SHA256SUMS.txt" class="text-zinc-400 hover:text-ios-blue transition underline underline-offset-4">SHA-256 Checksums</a>
+            </div>
+
+            <!-- Interactive Live Simulator Frame -->
+            <div class="mt-16 w-full max-w-sm sm:max-w-md bg-[#1C1C1E] border border-white/15 rounded-[40px] p-4 shadow-2xl glow-blue relative overflow-hidden text-left" id="live-demo">
+                <div class="flex items-center justify-between pb-3 px-2 border-b border-white/10 text-xs font-semibold">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-ios-green pulse-beacon"></span>
+                        <span class="tracking-tight text-white">Interactive Alpine Demo</span>
+                    </div>
+                    <span class="text-[10px] font-mono text-zinc-400">10Hz RUST LOG</span>
+                </div>
+
+                <!-- Live Demo Readout Card -->
+                <div class="bg-black/60 rounded-2xl p-4 my-3 border border-white/5 space-y-3">
+                    <div class="flex items-baseline justify-between">
+                        <div>
+                            <div class="text-4xl font-bold font-mono tracking-tight text-white tabular-nums" id="demoSpeed">48.6</div>
+                            <div class="text-[10px] uppercase font-semibold text-zinc-500">Speed (km/h)</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold font-mono text-zinc-200 tabular-nums" id="demoDuration">01:42.8</div>
+                            <div class="text-[10px] uppercase font-semibold text-zinc-500">Duration</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 pt-2 border-t border-white/10 text-center font-mono">
+                        <div class="bg-white/5 rounded-xl p-2">
+                            <div class="text-xs font-bold text-white tabular-nums" id="demoDist">1.84 km</div>
+                            <div class="text-[9px] text-zinc-400 uppercase">Distance</div>
+                        </div>
+                        <div class="bg-white/5 rounded-xl p-2">
+                            <div class="text-xs font-bold text-ios-blue tabular-nums" id="demoAlt">2,185 m</div>
+                            <div class="text-[9px] text-zinc-400 uppercase">Elevation</div>
+                        </div>
+                        <div class="bg-white/5 rounded-xl p-2">
+                            <div class="text-xs font-bold text-ios-green tabular-nums" id="demoGrade">+6.4%</div>
+                            <div class="text-[9px] text-zinc-400 uppercase">Gradient</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulation Route Canvas -->
+                <div class="w-full h-24 bg-black/40 rounded-xl overflow-hidden relative border border-white/5 mb-3 flex items-center justify-center">
+                    <canvas id="heroCanvas" class="w-full h-full block"></canvas>
+                    <div class="absolute top-2 left-2 text-[10px] font-mono text-zinc-500">Stelvio Alpine Pass • Vector Elevation</div>
+                </div>
+
+                <button onclick="toggleDemoPlayback()" id="demoRunBtn" class="w-full py-3 rounded-xl bg-ios-blue text-white font-semibold text-xs tracking-tight flex items-center justify-center gap-2 shadow-md active:scale-95 transition">
+                    <svg id="demoPlayIcon" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    <span id="demoPlayText">Run Alpine Simulation</span>
+                </button>
+            </div>
+
+        </section>
+
+        <!-- Bento Grid Features Section -->
+        <section class="max-w-6xl mx-auto px-6 py-20 border-t border-white/10" id="features">
+            <div class="text-center max-w-2xl mx-auto mb-16">
+                <h2 class="text-xs font-mono font-semibold uppercase tracking-wider text-ios-blue mb-2">Engineered For Performance</h2>
+                <h3 class="text-3xl sm:text-4xl font-extrabold tracking-tight">Everything a precision GPS logger should be.</h3>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Feature 1 -->
+                <div class="bg-[#1C1C1E] border border-white/10 rounded-3xl p-7 flex flex-col justify-between hover:border-white/20 transition">
+                    <div>
+                        <div class="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-ios-blue flex items-center justify-center mb-5">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2">Pure Rust Telemetry</h4>
+                        <p class="text-zinc-400 text-sm leading-relaxed">
+                            Sub-meter geodesy calculated with high-precision haversine trigonometry. Real-time velocity smoothing, elevation gain accumulators, and gradient math.
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-white/5 font-mono text-xs text-zinc-500">
+                        Rust 2021 Edition • Zero Allocations
+                    </div>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="bg-[#1C1C1E] border border-white/10 rounded-3xl p-7 flex flex-col justify-between hover:border-white/20 transition">
+                    <div>
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-ios-green flex items-center justify-center mb-5">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2">OpenFreeMap Vector Tiles</h4>
+                        <p class="text-zinc-400 text-sm leading-relaxed">
+                            Smooth, hardware-accelerated vector map playback using MapLibre GL. Apple Dark and Positron styling with zero API keys or map rate limits.
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-white/5 font-mono text-xs text-zinc-500">
+                        60fps Vector Tiles • Offline Capable
+                    </div>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="bg-[#1C1C1E] border border-white/10 rounded-3xl p-7 flex flex-col justify-between hover:border-white/20 transition">
+                    <div>
+                        <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mb-5">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2">Universal Export Suite</h4>
+                        <p class="text-zinc-400 text-sm leading-relaxed">
+                            One-tap export to standard GPX 1.1 with speed/grade extensions, RFC 7946 GeoJSON LineStrings, and tabular CSV data. Direct share to WhatsApp, Telegram, or AirDrop.
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-white/5 font-mono text-xs text-zinc-500">
+                        Strava • Google Earth • QGIS Ready
+                    </div>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="bg-[#1C1C1E] border border-white/10 rounded-3xl p-7 flex flex-col justify-between hover:border-white/20 transition">
+                    <div>
+                        <div class="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center mb-5">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2">100% Offline & Private</h4>
+                        <p class="text-zinc-400 text-sm leading-relaxed">
+                            Zero third-party trackers, zero advertising SDKs, and zero cloud accounts. All your recorded GPS coordinates remain strictly on your device.
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-white/5 font-mono text-xs text-zinc-500">
+                        Zero Telemetry • GDPR Compliant
+                    </div>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="bg-[#1C1C1E] border border-white/10 rounded-3xl p-7 flex flex-col justify-between hover:border-white/20 transition">
+                    <div>
+                        <div class="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mb-5">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2">Screen-Off Keep Alive</h4>
+                        <p class="text-zinc-400 text-sm leading-relaxed">
+                            Engineered with a low-power Web Audio oscillator and WakeLock sentinel to ensure Android OS battery optimization never interrupts your background ride or hike.
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-white/5 font-mono text-xs text-zinc-500">
+                        Background GNSS • Low Battery Draw
+                    </div>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="bg-[#1C1C1E] border border-white/10 rounded-3xl p-7 flex flex-col justify-between hover:border-white/20 transition">
+                    <div>
+                        <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mb-5">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2">Tactile Scrubber & Beacon</h4>
+                        <p class="text-zinc-400 text-sm leading-relaxed">
+                            Scrub across every second of your track. Watch the Apple-style pulsing beacon glide along the vector map, with real-time speed, elevation, and grade readouts.
+                        </p>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-white/5 font-mono text-xs text-zinc-500">
+                        Interactive Scrubbing • 9Hz Smooth Replay
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Technical Telemetry Specifications -->
+        <section class="max-w-4xl mx-auto px-6 py-20 border-t border-white/10" id="specs">
+            <div class="text-center mb-12">
+                <h2 class="text-xs font-mono font-semibold uppercase tracking-wider text-ios-green mb-2">Specification Sheet</h2>
+                <h3 class="text-3xl font-extrabold tracking-tight">Under the Hood</h3>
+            </div>
+
+            <div class="bg-[#1C1C1E] border border-white/10 rounded-3xl overflow-hidden shadow-xl">
+                <table class="w-full text-left text-sm">
+                    <tbody class="divide-y divide-white/5">
+                        <tr class="hover:bg-white/[0.02]">
+                            <td class="py-4 px-6 font-semibold text-zinc-300">Core Runtime</td>
+                            <td class="py-4 px-6 font-mono text-zinc-400">Rust 2021 Edition + Tauri v2 Mobile Architecture</td>
+                        </tr>
+                        <tr class="hover:bg-white/[0.02]">
+                            <td class="py-4 px-6 font-semibold text-zinc-300">Target Platforms</td>
+                            <td class="py-4 px-6 font-mono text-zinc-400">Android 7.0+ (API 24 to 34), arm64-v8a, armeabi-v7a, x86_64</td>
+                        </tr>
+                        <tr class="hover:bg-white/[0.02]">
+                            <td class="py-4 px-6 font-semibold text-zinc-300">Distance Formulation</td>
+                            <td class="py-4 px-6 font-mono text-zinc-400">Haversine Great-Circle Geodesy (WGS-84 Mean Radius = 6,371.0 km)</td>
+                        </tr>
+                        <tr class="hover:bg-white/[0.02]">
+                            <td class="py-4 px-6 font-semibold text-zinc-300">Supported GNSS Providers</td>
+                            <td class="py-4 px-6 font-mono text-zinc-400">GPS, GLONASS, Galileo, BeiDou, QZSS (Hardware Native)</td>
+                        </tr>
+                        <tr class="hover:bg-white/[0.02]">
+                            <td class="py-4 px-6 font-semibold text-zinc-300">Export Capabilities</td>
+                            <td class="py-4 px-6 font-mono text-zinc-400">GPX 1.1 (&lt;trkpt&gt; + extensions), GeoJSON LineString, RFC 4180 CSV</td>
+                        </tr>
+                        <tr class="hover:bg-white/[0.02]">
+                            <td class="py-4 px-6 font-semibold text-zinc-300">Vector Cartography</td>
+                            <td class="py-4 px-6 font-mono text-zinc-400">OpenFreeMap (MapLibre GL Vector Tiles, Dark / Positron)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Android Installation Guide -->
+        <section class="max-w-4xl mx-auto px-6 py-20 border-t border-white/10" id="install">
+            <div class="text-center mb-14">
+                <h2 class="text-xs font-mono font-semibold uppercase tracking-wider text-ios-blue mb-2">Android Sideloading Guide</h2>
+                <h3 class="text-3xl font-extrabold tracking-tight">How to install TRACE APK</h3>
+                <p class="text-zinc-400 text-sm mt-2">Takes less than 30 seconds. No Google Play account required.</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div class="bg-[#1C1C1E] border border-white/10 rounded-3xl p-6">
+                    <div class="w-8 h-8 rounded-full bg-ios-blue text-white font-bold text-sm flex items-center justify-center mb-4">1</div>
+                    <h4 class="font-bold text-base mb-1.5">Download the APK</h4>
+                    <p class="text-zinc-400 text-xs leading-relaxed">
+                        Click the "Download APK for Android" button above to save <code class="text-zinc-300 bg-white/5 px-1 py-0.5 rounded">trace-v1.0.0-universal.apk</code> to your device.
+                    </p>
+                </div>
+
+                <div class="bg-[#1C1C1E] border border-white/10 rounded-3xl p-6">
+                    <div class="w-8 h-8 rounded-full bg-ios-blue text-white font-bold text-sm flex items-center justify-center mb-4">2</div>
+                    <h4 class="font-bold text-base mb-1.5">Tap the Download Notification</h4>
+                    <p class="text-zinc-400 text-xs leading-relaxed">
+                        Swipe down your notification shade or open your "Files" / "Downloads" app and tap the downloaded file.
+                    </p>
+                </div>
+
+                <div class="bg-[#1C1C1E] border border-white/10 rounded-3xl p-6">
+                    <div class="w-8 h-8 rounded-full bg-ios-blue text-white font-bold text-sm flex items-center justify-center mb-4">3</div>
+                    <h4 class="font-bold text-base mb-1.5">Allow Unknown Sources</h4>
+                    <p class="text-zinc-400 text-xs leading-relaxed">
+                        If Android shows an "Install unknown apps" security prompt, tap <strong>Settings</strong> and toggle on <strong>Allow from this source</strong>.
+                    </p>
+                </div>
+
+                <div class="bg-[#1C1C1E] border border-white/10 rounded-3xl p-6">
+                    <div class="w-8 h-8 rounded-full bg-ios-green text-white font-bold text-sm flex items-center justify-center mb-4">4</div>
+                    <h4 class="font-bold text-base mb-1.5">Grant Location & Track</h4>
+                    <p class="text-zinc-400 text-xs leading-relaxed">
+                        Launch TRACE and choose <strong>"Allow all the time"</strong> or <strong>"While using the app"</strong> for high-accuracy telemetry logging.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section class="max-w-3xl mx-auto px-6 py-20 border-t border-white/10" id="faq">
+            <div class="text-center mb-12">
+                <h3 class="text-3xl font-extrabold tracking-tight">Frequently Asked Questions</h3>
+            </div>
+
+            <div class="space-y-4">
+                <details class="group bg-[#1C1C1E] border border-white/10 rounded-2xl p-5 cursor-pointer">
+                    <summary class="font-semibold text-sm flex items-center justify-between text-zinc-200">
+                        <span>Is this app 100% free and open source?</span>
+                        <span class="text-zinc-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <p class="text-xs text-zinc-400 mt-3 leading-relaxed">
+                        Yes, Trace is 100% free and licensed under the MIT License. You can inspect the complete Rust source code, build your own APKs, and export your data anytime.
+                    </p>
+                </details>
+
+                <details class="group bg-[#1C1C1E] border border-white/10 rounded-2xl p-5 cursor-pointer">
+                    <summary class="font-semibold text-sm flex items-center justify-between text-zinc-200">
+                        <span>Does recording continue when the screen turns off?</span>
+                        <span class="text-zinc-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <p class="text-xs text-zinc-400 mt-3 leading-relaxed">
+                        Yes! Trace implements both the Screen WakeLock API and a background Web Audio oscillator keep-alive engine. This prevents Android from putting the location acquisition thread to sleep during long runs, drives, or bike tours.
+                    </p>
+                </details>
+
+                <details class="group bg-[#1C1C1E] border border-white/10 rounded-2xl p-5 cursor-pointer">
+                    <summary class="font-semibold text-sm flex items-center justify-between text-zinc-200">
+                        <span>Can I import the GPX files into Strava, Garmin, or Google Earth?</span>
+                        <span class="text-zinc-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <p class="text-xs text-zinc-400 mt-3 leading-relaxed">
+                        Absolutely. The exported `.gpx` files strictly follow the GPX 1.1 specification and include elevation, ISO-8601 timestamps, and extended telemetry tags for instant compatibility with Strava, Garmin Connect, Google Earth, and QGIS.
+                    </p>
+                </details>
+            </div>
+        </section>
+
+        <!-- Final CTA Banner -->
+        <section class="max-w-5xl mx-auto px-6 py-20">
+            <div class="bg-gradient-to-br from-blue-900/40 via-[#1C1C1E] to-[#1C1C1E] border border-blue-500/20 rounded-[36px] p-10 sm:p-14 text-center flex flex-col items-center shadow-2xl">
+                <h3 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Start logging high-precision telemetry now.</h3>
+                <p class="text-zinc-400 text-sm max-w-lg mb-8">Download the standalone APK and experience the speed and privacy of pure Rust on Android.</p>
+                <a href="https://github.com/abhij/Trace/releases/latest/download/trace-v1.0.0-universal.apk" 
+                   onclick="handleDownloadClick(event)"
+                   class="px-8 py-4 rounded-2xl bg-ios-blue hover:bg-blue-500 font-semibold text-sm flex items-center gap-2.5 shadow-xl shadow-blue-500/30 active:scale-95 transition">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <span>Download Trace APK (v1.0.0)</span>
+                </a>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 py-12 text-center text-xs text-zinc-500">
+        <div class="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-zinc-300">TRACE</span>
+                <span>•</span>
+                <span>Precision GPS Blackbox in Rust</span>
+            </div>
+            <div>
+                Released under the <a href="https://opensource.org/licenses/MIT" target="_blank" class="text-zinc-400 hover:text-white underline">MIT License</a>. Open Source on GitHub.
+            </div>
+        </div>
+    </footer>
+
+    <!-- Interactive Simulator Script for Landing Page -->
+    <script>
+        let demoPlaying = false;
+        let demoInterval = null;
+        let demoStep = 0;
+
+        function toggleDemoPlayback() {
+            demoPlaying = !demoPlaying;
+            const btn = document.getElementById('demoRunBtn');
+            const icon = document.getElementById('demoPlayIcon');
+            const txt = document.getElementById('demoPlayText');
+
+            if (demoPlaying) {
+                txt.textContent = "Pause Simulation";
+                icon.innerHTML = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`;
+                demoInterval = setInterval(updateDemoTelemetry, 120);
+            } else {
+                txt.textContent = "Resume Alpine Simulation";
+                icon.innerHTML = `<path d="M8 5v14l11-7z"/>`;
+                clearInterval(demoInterval);
+            }
+        }
+
+        function updateDemoTelemetry() {
+            demoStep += 0.12;
+            const spd = +(44 + Math.sin(demoStep * 0.8) * 22 + Math.cos(demoStep * 1.5) * 8).toFixed(1);
+            const dist = +(1.84 + demoStep * 0.04).toFixed(2);
+            const alt = Math.round(2185 + Math.sin(demoStep * 0.4) * 35);
+            const grade = +(Math.sin(demoStep * 0.5) * 8.2).toFixed(1);
+
+            document.getElementById('demoSpeed').textContent = spd.toFixed(1);
+            document.getElementById('demoDist').textContent = `${dist} km`;
+            document.getElementById('demoAlt').textContent = `${alt.toLocaleString()} m`;
+            document.getElementById('demoGrade').textContent = `${grade > 0 ? '+' : ''}${grade}%`;
+
+            const totalSec = Math.floor(102 + demoStep * 2);
+            const min = Math.floor(totalSec / 60);
+            const sec = totalSec % 60;
+            const tenth = Math.floor((demoStep * 10) % 10);
+            document.getElementById('demoDuration').textContent = 
+                `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${tenth}`;
+
+            drawDemoCanvas(demoStep);
+        }
+
+        function drawDemoCanvas(step) {
+            const canvas = document.getElementById('heroCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.parentElement.clientWidth;
+            const h = canvas.height = canvas.parentElement.clientHeight;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw elevation profile
+            ctx.beginPath();
+            const totalPts = 40;
+            for (let i = 0; i <= totalPts; i++) {
+                const x = (i / totalPts) * w;
+                const y = h * 0.7 - Math.sin((i * 0.2) + step * 0.3) * (h * 0.28);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.lineTo(w, h);
+            ctx.lineTo(0, h);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(0, 122, 255, 0.2)';
+            ctx.fill();
+
+            // Draw speed line
+            ctx.beginPath();
+            for (let i = 0; i <= totalPts; i++) {
+                const x = (i / totalPts) * w;
+                const y = h * 0.45 - Math.cos((i * 0.3) + step * 0.5) * (h * 0.25);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = '#34C759';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        window.addEventListener('resize', () => drawDemoCanvas(demoStep));
+        window.addEventListener('DOMContentLoaded', () => drawDemoCanvas(0));
+
+        function handleDownloadClick(e) {
+            console.log('Downloading APK from GitHub releases...');
+        }
+    </script>
+</body>
+</html>

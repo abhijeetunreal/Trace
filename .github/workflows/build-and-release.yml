@@ -1,0 +1,167 @@
+name: Build Android APK & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.0.0)'
+        required: true
+        default: '1.0.0'
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    name: Build & Package Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK & Build Tools
+        run: |
+          yes | sdkmanager --install "ndk;25.2.9519653" "build-tools;34.0.0" "platforms;android-34"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
+          echo "NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Extract Version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Run Cargo Workspace Tests
+        run: cargo test --workspace --verbose
+
+      - name: Initialize Android Project (if not generated)
+        run: |
+          if [ ! -d "src-tauri/gen/android" ]; then
+            npx @tauri-apps/cli android init
+          fi
+
+      - name: Build Android APKs via Tauri
+        env:
+          NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+        run: |
+          npx @tauri-apps/cli android build --apk
+
+      - name: Prepare & Sign Release Artifacts
+        id: prepare_artifacts
+        run: |
+          mkdir -p release-artifacts
+          
+          # Find generated APKs
+          APK_PATHS=$(find src-tauri/gen/android -name "*.apk")
+          echo "Found APKs:"
+          echo "$APK_PATHS"
+
+          # Create a keystore if one doesn't exist to sign the APK for direct installation
+          keytool -genkeypair -v -keystore release.jks -alias trace-release \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass tracepassword -keypass tracepassword \
+            -dname "CN=Trace, OU=Mobile, O=Codefry, C=US"
+
+          COUNT=0
+          for APK in $APK_PATHS; do
+            COUNT=$((COUNT + 1))
+            BASENAME=$(basename "$APK")
+            
+            # Sign APK with apksigner or jarsigner
+            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+              -keystore release.jks -storepass tracepassword -keypass tracepassword \
+              -signedjar "release-artifacts/trace-v${{ env.VERSION }}-${BASENAME}" "$APK" trace-release
+          done
+
+          # Also create a standardized universal APK copy
+          FIRST_APK=$(ls release-artifacts/*.apk | head -n 1)
+          if [ -f "$FIRST_APK" ]; then
+            cp "$FIRST_APK" "release-artifacts/trace-v${{ env.VERSION }}-universal.apk"
+          fi
+
+          # Compute SHA256 Checksums
+          cd release-artifacts
+          sha256sum *.apk > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          cd ..
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          cat << 'EOF' > RELEASE_NOTES.md
+          # 🛰️ TRACE — Precision Mobile GPS Telemetry Blackbox v${{ env.VERSION }}
+
+          High-precision, offline-first GPS telemetry blackbox and vector route visualizer built with **Rust 2021** and **Tauri v2 Mobile**.
+
+          ### ✨ Key Features in this Release
+          - **Pure Rust Telemetry Engine**: Sub-meter haversine geodesy, velocity smoothing, and elevation gradient calculation.
+          - **OpenFreeMap Vector Tiles**: High-performance offline and online vector map playback with Apple dark/light styling.
+          - **Tactile Telemetry Scrubber**: Dynamic elevation and speed sparkline synchronized with a high-contrast location beacon.
+          - **Military/Alpine Grade Exporter**: One-tap export to **.GPX 1.1**, **.GeoJSON**, and **.CSV**.
+          - **Screen-Off Keep-Alive**: AudioContext oscillator and WakeLock API prevent OS throttling during telemetry logging.
+          - **100% Private & On-Device**: Zero tracking, zero ads, zero external server dependencies.
+
+          ### 📦 Android Installation Instructions
+          1. Download `trace-v${{ env.VERSION }}-universal.apk` below.
+          2. Open the downloaded file on your Android device.
+          3. When prompted, select **Settings** and allow **Install unknown apps** for your browser/files app.
+          4. Open Trace and grant **Location** permission to start recording telemetry!
+
+          ### 🔒 Checksums (SHA-256)
+          Verify package integrity using `sha256sum -c SHA256SUMS.txt`.
+          EOF
+          sed -i "s/\${{ env.VERSION }}/${{ env.VERSION }}/g" RELEASE_NOTES.md
+
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || format('v{0}', env.VERSION) }}
+          name: Trace GPS Telemetry v${{ env.VERSION }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease || false }}
+          files: |
+            release-artifacts/*.apk
+            release-artifacts/SHA256SUMS.txt
