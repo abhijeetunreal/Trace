@@ -1,163 +1,146 @@
 # 🛰️ TRACE — Precision Mobile GPS Telemetry Blackbox in Rust
 
-[![Rust Workspace CI](https://github.com/abhij/Trace/actions/workflows/ci.yml/badge.svg)](https://github.com/abhij/Trace/actions/workflows/ci.yml)
-[![Build Android APK & Release](https://github.com/abhij/Trace/actions/workflows/build-and-release.yml/badge.svg)](https://github.com/abhij/Trace/actions/workflows/build-and-release.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Tauri](https://img.shields.io/badge/Tauri-v2%20Mobile-orange.svg)](https://tauri.app/)
+<p align="center">
+  <img src="assets/trace-banner.svg" alt="TRACE — Precision Mobile GPS Telemetry Blackbox" width="100%" />
+</p>
 
-A high-precision, offline-first mobile GPS telemetry blackbox and vector route visualizer built with **Rust 2021** and **Tauri v2 Mobile**.
+<p align="center">
+  <a href="https://github.com/abhijeetunreal/Trace/releases"><img src="https://img.shields.io/github/v/release/abhijeetunreal/Trace?color=007AFF&label=Android%20APK&style=flat-square" alt="Release"></a>
+  <a href="https://github.com/abhijeetunreal/Trace/actions/workflows/build-and-release.yml"><img src="https://img.shields.io/github/actions/workflow/status/abhijeetunreal/Trace/build-and-release.yml?branch=master&label=Build%20%26%20Release&style=flat-square" alt="Build Status"></a>
+  <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri-v2%20Mobile-orange.svg?style=flat-square" alt="Tauri v2"></a>
+  <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-2021%20Core-DEA584.svg?style=flat-square" alt="Rust 2021"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="MIT License"></a>
+</p>
 
-Designed with an Apple Watch Ultra & Cupertino design aesthetic, featuring 10Hz sub-meter geodesy, dynamic speed & gradient elevation scrubbers, OpenFreeMap vector cartography, and universal export to GPX 1.1, GeoJSON, and CSV.
-
----
-
-## 📱 Product Showcase & Landing Page
-
-Trace includes a dedicated product & download landing page located in [`landing_page/index.html`](landing_page/index.html):
-- Interactive live telemetry simulator
-- Direct links to download release APKs
-- Feature breakdowns and technical specification sheets
-- Step-by-step Android sideloading walkthrough
+<p align="center">
+  <strong>🌐 Official Product Showcase &amp; Live Landing Page:</strong><br />
+  <a href="http://abhijeet.codefrydev.in/Trace/"><strong>http://abhijeet.codefrydev.in/Trace/</strong></a>
+</p>
 
 ---
 
-## ✨ Features
+## 🎯 What is TRACE?
 
-- **🦀 Pure Rust Telemetry Engine**:
-  - Sub-meter geodesy calculated with high-precision haversine trigonometry ($R = 6,371.0\text{ km}$).
-  - Real-time velocity smoothing, elevation gain accumulators, and gradient math (clamped to realistic slope limits).
-  - In-memory thread-safe state cache with atomic disk persistence.
-- **🗺️ OpenFreeMap Vector Cartography**:
-  - 60fps hardware-accelerated vector map playback powered by MapLibre GL.
-  - Apple Dark and Positron vector tile themes with zero API keys or rate limits.
-- **📍 Tactile Scrubber & Pulsing Beacon**:
-  - Synchronized location puck that glides across the map with an Apple Maps sonar halo.
-  - Interactive canvas sparkline showing speed curve and elevation fill with real-time coordinate and timestamp readouts.
-- **📦 Military & Alpine Grade Exporter**:
-  - **GPX 1.1** tracks with `<trkpt>`, elevation `<ele>`, ISO-8601 `<time>`, and `<extensions><speed><grade></extensions>`.
-  - **GeoJSON** RFC 7946 LineStrings with telemetry properties.
-  - Tabular **CSV** data.
-  - Direct native sharing to WhatsApp, Telegram, Mail, AirDrop, and device storage.
-- **🔋 Screen-Off Keep-Alive**:
-  - Web Audio oscillator and WakeLock API sentinel prevent Android from sleeping or throttling GNSS polling in the background.
-- **🛡️ 100% Private & Offline**:
-  - Zero analytics, zero ad SDKs, zero cloud lock-in. Your location data never leaves your device.
+**TRACE** is a high-precision, offline-first mobile GPS blackbox and vector route visualizer engineered in **Rust 2021** with **Tauri v2 Mobile**. 
+
+Designed with an Apple Watch Ultra aesthetic, TRACE captures sub-meter GNSS geodesy, real-time velocity smoothing, and elevation gradient mathematics in a thread-safe local engine. It operates completely **off-grid with zero cloud accounts, zero ads, and zero telemetry leakage**.
 
 ---
 
-## 🏗️ Project Architecture
+## 📱 Product Showcase
+
+<p align="center">
+  <img src="assets/trace-mobile-mockup.svg" alt="TRACE Mobile Application Interface" width="460" />
+</p>
+
+### Key Capabilities at a Glance:
+- **🦀 100% Rust Telemetry Engine**: Sub-meter geodesy calculated via Haversine spherical trigonometry ($R = 6,371.0\text{ km}$), acceleration damping, and slope grade limits.
+- **🗺️ OpenFreeMap Vector Cartography**: 60fps hardware-accelerated vector playback powered by MapLibre GL with Apple dark/light styling. Zero API keys or rate limits.
+- **📍 Tactile Scrubber & Pulsing Beacon**: Interactive canvas sparkline showing speed curve and elevation fill, with real-time coordinate and timestamp readouts.
+- **📦 Multi-Format Universal Exporter**: Instant export to **GPX 1.1** (with speed & grade extensions), **GeoJSON** (RFC 7946 LineStrings), and **CSV**.
+- **📲 Native Android Share Sheet**: Real Android `Intent.ACTION_SEND` bridge with `FileProvider` to WhatsApp, Telegram, Mail, and system app chooser.
+- **🔋 Screen-Off Keep-Alive**: Web Audio oscillator and WakeLock API prevent Android from sleeping or throttling GNSS polling in background logging.
+
+---
+
+## 🏎️ Real-World Use Case Scenarios
+
+<p align="center">
+  <img src="assets/usecases-preview.svg" alt="TRACE Real-World Use Cases" width="100%" />
+</p>
+
+### 1. 🏎️ Track Days & Motorsports
+- **Purpose**: High-frequency cornering velocity, apex braking points, and deceleration blackbox.
+- **Workflow**: Mount your phone in your vehicle or cockpit, start TRACE, and record 10Hz GNSS data. Replay corners using speed-based color gradients (cyan to red) to pinpoint apex velocity losses.
+
+### 2. 🚴 Alpine Cycling & Mountain Climbs
+- **Purpose**: Instant slope grade %, elevation gain accumulation, and Strava route export.
+- **Workflow**: Mount your phone on bicycle handlebars. The HUD displays real-time grade % and net climbing meters. When finished, tap **WhatsApp** or **Device Share Sheet** to send the `.gpx` file directly to Strava or your cycling group.
+
+### 3. 🚙 Road Trips & Overlanding
+- **Purpose**: 100% offline blackbox recording through valleys, tunnels, and cellular blackouts.
+- **Workflow**: Navigate through remote wilderness or canyons where cell towers do not exist. TRACE stores every point locally in an encrypted/atomic storage file and never drops coordinates when your screen turns off.
+
+### 4. 🛰️ GIS Surveying & Field Data Collection
+- **Purpose**: Local RFC 7946 GeoJSON LineStrings and CSV tables with zero cloud privacy risks.
+- **Workflow**: Field researchers and survey engineers can log continuous track paths and export standard GeoJSON files directly into QGIS, ArcGIS, or Python data pipelines.
+
+---
+
+## 📦 Download & Installation
+
+The latest production APK is automatically built, aligned, and signed with Android v1, v2, and v3 signature schemes on every commit:
+
+- 📥 **[Download Latest APK Releases on GitHub](https://github.com/abhijeetunreal/Trace/releases)**
+- 🌐 **[Visit the Product Page](http://abhijeet.codefrydev.in/Trace/)**
+
+### Sideloading Instructions:
+1. Download `trace-vX.X.X.X-universal.apk` from the [Releases](https://github.com/abhijeetunreal/Trace/releases) page.
+2. Open the file on your Android device (Android 7.0 to Android 15 supported).
+3. If prompted, tap **Settings** and allow **Install unknown apps**.
+4. Launch TRACE, grant **Precise Location** permission, and start your trace!
+
+---
+
+## 🏗️ Technical Architecture
 
 ```
 Trace/
-├── .github/
-│   └── workflows/
-│       ├── build-and-release.yml   # Builds Android APK, signs, and publishes to GitHub Releases
-│       └── ci.yml                  # Runs Rust workspace tests & verification
-├── landing_page/
-│   └── index.html                  # Product & APK download landing page
-├── src/                            # Frontend UI
-│   ├── index.html                  # Mobile telemetry interface
-│   ├── style.css                   # Cupertino styles, scrubber slider, sonar puck
-│   └── app.js                      # Bridge between UI and Tauri Rust commands
-├── src-tauri/                      # Rust Core & Tauri v2 Backend
-│   ├── Cargo.toml                  # Rust dependencies
-│   ├── tauri.conf.json             # Tauri configuration (bundle ID, permissions, Android config)
-│   ├── build.rs                    # Tauri build script
-│   ├── icons/                      # App icon set (ICO, PNGs)
-│   ├── capabilities/
-│   │   └── default.json            # Security permissions for commands
-│   ├── gen/android/                # Generated Android Studio Gradle project
-│   │   └── app/src/main/
-│   │       └── AndroidManifest.xml # Fine/Coarse GPS, Foreground Service permissions
-│   └── src/
-│       ├── main.rs                 # Application entry point
-│       ├── lib.rs                  # Library entry & Tauri handler registration
-│       ├── models.rs               # GpsPoint, Session, SessionStats, ExportFormat
-│       ├── telemetry.rs            # Haversine geodesy, velocity, gradient calculations
-│       ├── export.rs               # GPX 1.1, GeoJSON, CSV formatting
-│       ├── storage.rs              # Disk persistence & caching
-│       ├── simulator.rs            # Alpine Stelvio route generator
-│       └── commands.rs             # Tauri command bridge to frontend
-├── package.json                    # Scripts and Tauri CLI runner
-├── Cargo.toml                      # Workspace definition
-└── README.md
+├── .github/workflows/
+│   └── build-and-release.yml   # Multi-arch NDK build, zipalign & apksigner (v1+v2+v3), GitHub Pages
+├── assets/                     # Vector branding and showcase materials
+│   ├── trace-logo.svg          # Official TRACE radar icon
+│   ├── trace-banner.svg        # Widescreen product hero banner
+│   ├── trace-mobile-mockup.svg # Complete mobile chassis vector mockup
+│   └── usecases-preview.svg    # Use case scenario diagrams
+├── landing_page/               # Product landing page (http://abhijeet.codefrydev.in/Trace/)
+│   ├── index.html              # Minimal, high-vibe product showcase
+│   └── assets/                 # SVGs and branding
+├── src/                        # Frontend UI (Cupertino Design)
+│   ├── index.html              # Sticky status bar shield & mobile shell
+│   ├── style.css               # Obsidian status bar, scrubber slider, tactile puck
+│   └── app.js                  # AndroidShare bridge & Leaflet/MapLibre GL controller
+├── src-tauri/                  # Rust 2021 + Tauri v2 Backend
+│   ├── src/
+│   │   ├── models.rs           # GpsPoint, Session, SessionStats, ExportFormat
+│   │   ├── telemetry.rs        # Haversine geodesy, velocity smoothing, elevation math
+│   │   ├── export.rs           # GPX 1.1, GeoJSON RFC 7946, CSV formatting
+│   │   ├── storage.rs          # Atomic RwLock disk persistence
+│   │   ├── simulator.rs        # Synthetic Alpine Stelvio route generator
+│   │   └── commands.rs         # Tauri IPC commands
+│   └── gen/android/            # Android Gradle project
+│       └── app/src/main/
+│           ├── AndroidManifest.xml # Fine/Coarse GPS, FileProvider, <queries>
+│           ├── java/.../MainActivity.kt # AndroidShareBridge (Intent.ACTION_SEND)
+│           └── res/xml/file_paths.xml   # Cache & internal files sharing paths
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🧪 Verification & Testing
 
-### Prerequisites
-
-- [Rust](https://rustup.rs/) (1.78+)
-- [Node.js](https://nodejs.org/) (20+) & npm
-- [Android Studio / Android SDK & NDK](https://developer.android.com/studio) (for local APK building)
-
-### Run Unit Tests (Rust)
-
-All telemetry calculations, haversine algorithms, session persistence, and export formatters have thorough Rust unit tests:
+All geodesy formulas, velocity smoothers, and export engines are covered by pure Rust unit tests:
 
 ```bash
 cargo test --workspace
 ```
 
-### Run Locally on Desktop
-
-```bash
-# Install dependencies
-npm install
-
-# Run in development mode
-npm run dev
 ```
+running 7 tests
+test export::tests::test_csv_generation ... ok
+test telemetry::tests::test_haversine_accuracy ... ok
+test telemetry::tests::test_calculate_point_progression ... ok
+test export::tests::test_gpx_generation ... ok
+test simulator::tests::test_demo_track_generation ... ok
+test export::tests::test_geojson_generation ... ok
+test storage::tests::test_storage_lifecycle ... ok
 
-### Build Android APK Locally
-
-```bash
-# Initialize Android project (first time)
-npx @tauri-apps/cli android init
-
-# Build release APK
-npx @tauri-apps/cli android build --apk
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
-
----
-
-## 🤖 GitHub Actions Workflow: Auto Build & Release APK
-
-The workflow `.github/workflows/build-and-release.yml` automatically builds the Android APK and publishes it to the GitHub Releases page.
-
-### How to trigger a release:
-
-1. **Via Git Tag**:
-   ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
-2. **Via Manual Trigger**:
-   - Go to your repository's **Actions** tab on GitHub.
-   - Select **Build Android APK & Release**.
-   - Click **Run workflow**, input version number (e.g. `1.0.0`), and run.
-
-The workflow will:
-1. Compile the Rust core and run all workspace tests.
-2. Build the Android APK using Android SDK & NDK.
-3. Sign the APK with a release keystore.
-4. Generate `SHA256SUMS.txt` checksums.
-5. Create a GitHub Release with formatted release notes.
-6. Attach `trace-v{VERSION}-universal.apk`, `trace-v{VERSION}-arm64-v8a.apk`, and `SHA256SUMS.txt`.
-
----
-
-## 📥 Installing the APK on Android
-
-1. Download `trace-v1.0.0-universal.apk` from the [Releases](https://github.com/abhij/Trace/releases) page or product page.
-2. Open the downloaded file in your Android device's file manager or notification bar.
-3. If prompted by Android, tap **Settings** and allow **Install unknown apps**.
-4. Tap **Install**, open TRACE, and grant **Location** permissions.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the [MIT License](LICENSE).
+Built with ❤️ using [Rust](https://www.rust-lang.org/) and [Tauri](https://tauri.app/).

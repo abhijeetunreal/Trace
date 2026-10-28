@@ -9,6 +9,7 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.core.content.FileProvider
+import androidx.core.view.WindowInsetsControllerCompat
 import java.io.File
 import java.io.FileOutputStream
 
@@ -182,6 +183,9 @@ class MainActivity : TauriActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        try {
+            WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = false
+        } catch (_: Exception) {}
     }
 
     override fun onWebViewCreate(webView: WebView) {

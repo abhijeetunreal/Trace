@@ -3,11 +3,31 @@
     --sab: env(safe-area-inset-bottom, 0px);
     --sal: env(safe-area-inset-left, 0px);
     --sar: env(safe-area-inset-right, 0px);
+    --top-bar-height: max(var(--sat), 44px);
+}
+
+/* Fixed Top Status Bar Shield - Solid obsidian black across BOTH dark and light themes */
+.status-bar-shield {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--top-bar-height);
+    background-color: #000000;
+    z-index: 999;
+    pointer-events: none;
+}
+
+/* Sticky App Navigation Header */
+.sticky-header {
+    position: sticky;
+    top: var(--top-bar-height);
+    z-index: 500;
 }
 
 /* Professional Mobile Status Bar & Navigation Insets */
 .app-container {
-    padding-top: max(calc(var(--sat) + 12px), 48px);
+    padding-top: var(--top-bar-height);
     padding-bottom: max(calc(var(--sab) + 16px), 32px);
     padding-left: max(var(--sal), 16px);
     padding-right: max(var(--sar), 16px);
@@ -98,5 +118,5 @@ input[type=range].apple-slider::-webkit-slider-thumb:active {
 }
 
 .rec-dot {
-    animation: rec-pulse 1.4s infinite ease-in-out;
+    animation: rec-pulse 1.4s ease-in-out infinite;
 }

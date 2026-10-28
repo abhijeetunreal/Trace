@@ -49,11 +49,14 @@
 </head>
 <body class="bg-[#F2F2F7] dark:bg-black text-zinc-900 dark:text-white font-sans antialiased min-h-screen flex flex-col items-center transition-colors duration-300 selection:bg-ios-blue/20">
 
+    <!-- Fixed Top Status Bar Shield - Solid obsidian black across BOTH dark and light themes (keeps clock & 5G/battery icons 100% visible) -->
+    <div class="status-bar-shield"></div>
+
     <!-- Apple-Style Single-Column Mobile Shell with Safe Area Top/Bottom Insets -->
     <div class="app-container w-full max-w-md min-h-screen flex flex-col">
 
-        <!-- Minimal Cupertino Navigation Header -->
-        <header class="flex items-center justify-between py-2.5 mb-3">
+        <!-- Sticky Cupertino Navigation Header (Masks scrolled content underneath) -->
+        <header class="sticky-header -mx-4 px-4 py-2.5 mb-3 bg-[#F2F2F7]/95 dark:bg-black/95 backdrop-blur-xl border-b border-black/[0.05] dark:border-white/[0.08] flex items-center justify-between transition-colors shadow-xs">
             <div class="flex items-center gap-2.5">
                 <div class="w-2.5 h-2.5 rounded-full bg-ios-green shadow-[0_0_8px_#34C759]" id="statusDot"></div>
                 <div class="flex items-baseline gap-1.5">
