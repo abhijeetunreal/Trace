@@ -10,9 +10,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
 
 jobs:
   deploy-pages:
@@ -21,9 +25,27 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Deploy to GitHub Pages
+      # 1. Deploy via peaceiris to gh-pages branch (if repo uses Deploy from a branch)
+      - name: Deploy via peaceiris (gh-pages branch)
         uses: peaceiris/actions-gh-pages@v4
+        continue-on-error: true
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./landing_page
           force_orphan: true
+
+      # 2. Deploy via GitHub Actions Native Pages (if repo uses GitHub Actions source)
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        continue-on-error: true
+
+      - name: Upload artifact for GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        continue-on-error: true
+        with:
+          path: './landing_page'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
