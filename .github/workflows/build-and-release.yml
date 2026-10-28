@@ -124,31 +124,70 @@ jobs:
         run: |
           mkdir -p release-artifacts
 
-          # Locate all built APK files
-          APK_PATHS=$(find src-tauri/gen/android -name "*.apk" -type f)
-          echo "Found APKs:"
-          echo "$APK_PATHS"
+          # Find Android SDK Build Tools (zipalign & apksigner)
+          BUILD_TOOLS_DIR=$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -mindepth 1 | sort -V | tail -n 1)
+          echo "Using Android Build Tools from: $BUILD_TOOLS_DIR"
+          ZIPALIGN="$BUILD_TOOLS_DIR/zipalign"
+          APKSIGNER="$BUILD_TOOLS_DIR/apksigner"
 
           # Generate signing keystore for production-ready installable APKs
-          keytool -genkeypair -v -keystore release.jks -alias trace-release \
+          keytool -genkeypair -v -keystore release.keystore -alias trace-release \
             -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass tracepassword -keypass tracepassword \
             -dname "CN=Trace, OU=Mobile, O=Codefry, C=US"
 
-          for APK in $APK_PATHS; do
-            BASENAME=$(basename "$APK")
-            TARGET="release-artifacts/trace-v${{ env.VERSION }}-${BASENAME}"
+          # Function to align, sign with v1+v2+v3, and verify
+          sign_and_package() {
+            local src_apk="$1"
+            local dest_name="$2"
 
-            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
-              -keystore release.jks -storepass tracepassword -keypass tracepassword \
-              -signedjar "$TARGET" "$APK" trace-release
-          done
+            if [ -f "$src_apk" ]; then
+              echo "==> Aligning and signing: $src_apk -> $dest_name"
+              "$ZIPALIGN" -p -f 4 "$src_apk" /tmp/aligned.apk
+              "$APKSIGNER" sign --ks release.keystore \
+                --ks-pass pass:tracepassword \
+                --key-pass pass:tracepassword \
+                --ks-key-alias trace-release \
+                --v1-signing-enabled true \
+                --v2-signing-enabled true \
+                --v3-signing-enabled true \
+                --out "release-artifacts/$dest_name" /tmp/aligned.apk
 
-          # Create standardized universal & canonical APK copies
-          FIRST_APK=$(ls release-artifacts/*.apk | head -n 1)
-          if [ -f "$FIRST_APK" ]; then
-            cp "$FIRST_APK" "release-artifacts/trace-v${{ env.VERSION }}-universal.apk"
-            cp "$FIRST_APK" "release-artifacts/trace-universal.apk"
+              # Verify signature scheme v1, v2, v3
+              echo "Verified signature for $dest_name:"
+              "$APKSIGNER" verify --verbose "release-artifacts/$dest_name"
+              rm -f /tmp/aligned.apk
+            else
+              echo "Warning: Source APK $src_apk not found."
+            fi
+          }
+
+          # 1. Sign Universal APK (contains native libs for all architectures)
+          UNIVERSAL_SRC=$(find src-tauri/gen/android -name "*universal*.apk" -type f | head -n 1)
+          if [ -n "$UNIVERSAL_SRC" ]; then
+            sign_and_package "$UNIVERSAL_SRC" "trace-v${{ env.VERSION }}-universal.apk"
+            cp "release-artifacts/trace-v${{ env.VERSION }}-universal.apk" "release-artifacts/trace-universal.apk"
+          fi
+
+          # 2. Sign ARM64 APK
+          ARM64_SRC=$(find src-tauri/gen/android -name "*arm64*.apk" -type f | head -n 1)
+          if [ -n "$ARM64_SRC" ]; then
+            sign_and_package "$ARM64_SRC" "trace-v${{ env.VERSION }}-arm64-v8a.apk"
+          fi
+
+          # 3. Sign ARMv7 (32-bit) APK
+          ARM_SRC=$(find src-tauri/gen/android -name "*arm-*.apk" -o -name "*armeabi*.apk" -type f | head -n 1)
+          if [ -n "$ARM_SRC" ]; then
+            sign_and_package "$ARM_SRC" "trace-v${{ env.VERSION }}-armeabi-v7a.apk"
+          fi
+
+          # Fallback if universal wasn't found by pattern
+          if [ ! -f "release-artifacts/trace-universal.apk" ]; then
+            FIRST_SRC=$(find src-tauri/gen/android -name "*.apk" -type f | head -n 1)
+            if [ -n "$FIRST_SRC" ]; then
+              sign_and_package "$FIRST_SRC" "trace-v${{ env.VERSION }}-universal.apk"
+              cp "release-artifacts/trace-v${{ env.VERSION }}-universal.apk" "release-artifacts/trace-universal.apk"
+            fi
           fi
 
           # Generate SHA256 Checksums
