@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRACE — Precision Mobile GPS Telemetry Blackbox in Rust</title>
+    <meta name="description" content="High-precision, offline-first mobile GPS telemetry blackbox and vector route visualizer built with Rust and Tauri v2 Mobile.">
+    <link rel="canonical" href="http://abhijeet.codefrydev.in/Trace/" />
+    <meta property="og:title" content="TRACE — Precision Mobile GPS Telemetry Blackbox in Rust" />
+    <meta property="og:description" content="10Hz hardware GNSS geodesy, dynamic speed & elevation gradient scrubbers, 60fps vector replay, and instant GPX / GeoJSON export." />
+    <meta property="og:url" content="http://abhijeet.codefrydev.in/Trace/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="assets/trace-banner.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="TRACE — Precision Mobile GPS Telemetry Blackbox" />
+    <meta name="twitter:description" content="100% Rust Core, 10Hz GNSS, Offline Blackbox, Zero Tracking." />
+    <meta name="twitter:image" content="assets/trace-banner.svg" />
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        ios: {
+                            blue: '#007AFF',
+                            green: '#34C759',
+                            red: '#FF3B30',
+                            orange: '#FF9500',
+                            darkCard: '#1C1C1E',
+                            darkElevated: '#2C2C2E',
+                            borderDark: 'rgba(255, 255, 255, 0.08)'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        .glow-pedestal {
+            background: radial-gradient(circle at 50% 50%, rgba(0, 122, 255, 0.25) 0%, rgba(52, 199, 89, 0.12) 40%, transparent 70%);
+        }
+        @keyframes subtle-float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+        .float-animation {
+            animation: subtle-float 6s ease-in-out infinite;
+        }
+        @keyframes pulse-beacon {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+        .pulse-beacon {
+            animation: pulse-beacon 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="bg-black text-white font-sans antialiased selection:bg-ios-blue/30 selection:text-white">
+
+    <!-- Ambient Glowing Gradient Backdrops -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div class="absolute -top-[15%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-to-b from-blue-600/18 via-emerald-600/10 to-transparent rounded-full blur-3xl"></div>
+        <div class="absolute top-[45%] -right-[15%] w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-[5%] -left-[15%] w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-3xl"></div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <header class="relative z-50 max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
+        <a href="http://abhijeet.codefrydev.in/Trace/" class="flex items-center gap-3 group">
+            <img src="assets/trace-logo.svg" alt="TRACE Logo" class="w-9 h-9 rounded-xl shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-transform" />
+            <div class="flex items-baseline gap-2">
+                <span class="font-extrabold text-xl tracking-tight">TRACE</span>
+                <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded-md bg-white/10 text-zinc-300 font-semibold tracking-wider">RUST CORE</span>
+            </div>
+        </a>
+
+        <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
+            <a href="#showcase" class="hover:text-white transition">Product</a>
+            <a href="#use-cases" class="hover:text-white transition">Use Cases</a>
+            <a href="#architecture" class="hover:text-white transition">Architecture</a>
+            <a href="#install" class="hover:text-white transition">Install</a>
+            <a href="#faq" class="hover:text-white transition">FAQ</a>
+        </nav>
+
+        <div class="flex items-center gap-3">
+            <a href="https://github.com/abhijeetunreal/Trace" target="_blank" class="hidden sm:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-zinc-300 transition">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                <span>GitHub</span>
+            </a>
+            <a href="https://github.com/abhijeetunreal/Trace/releases/download/v1.0.0.11/trace-v1.0.0.11-universal.apk" class="apk-download-link px-4 py-2 rounded-xl bg-ios-blue hover:bg-blue-500 font-semibold text-xs tracking-tight shadow-md shadow-blue-500/25 active:scale-95 transition flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span>Download APK</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="relative z-10">
+
+        <!-- ================= HERO SECTION ================= -->
+        <section id="showcase" class="pt-8 pb-16 px-6 max-w-6xl mx-auto flex flex-col items-center text-center">
+            
+            <!-- Badges Pill -->
+            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.06] border border-white/10 text-xs font-medium text-zinc-300 mb-8 backdrop-blur-md">
+                <span class="w-2 h-2 rounded-full bg-ios-green pulse-beacon"></span>
+                <span id="versionBadge">Trace v1.0.0.11</span>
+                <span class="text-zinc-600">•</span>
+                <span class="text-zinc-400">10Hz GNSS Geodesy</span>
+                <span class="text-zinc-600">•</span>
+                <span class="text-emerald-400">Zero Cloud Tracking</span>
+            </div>
+
+            <!-- Headline -->
+            <h1 class="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight max-w-4xl leading-[1.08] mb-6">
+                Precision GPS Telemetry for <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-emerald-400 to-amber-300">High-Velocity</span> Tracking.
+            </h1>
+
+            <!-- Subtitle -->
+            <p class="text-base sm:text-lg text-zinc-400 max-w-2xl leading-relaxed mb-8">
+                Sub-meter geodesy, dynamic speed and elevation gradient scrubbers, 60fps vector replay, and instant GPX / GeoJSON export. Zero accounts, zero ads, zero telemetry leakage.
+            </p>
+
+            <!-- Download & Call To Action Buttons -->
+            <div class="flex flex-col sm:flex-row items-center gap-4 w-full justify-center max-w-md mb-8" id="download">
+                <a id="primaryDownloadBtn" href="https://github.com/abhijeetunreal/Trace/releases/download/v1.0.0.11/trace-v1.0.0.11-universal.apk" 
+                   class="apk-download-link w-full sm:w-auto px-7 py-4 rounded-2xl bg-ios-blue hover:bg-blue-500 font-semibold text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-blue-500/25 active:scale-[0.98] transition">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <span id="primaryDownloadBtnText">Download APK for Android</span>
+                </a>
+                
+                <a href="https://github.com/abhijeetunreal/Trace/releases" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 font-semibold text-sm text-zinc-300 active:scale-95 transition-all flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                    <span>GitHub Releases</span>
+                </a>
+            </div>
+
+            <!-- Download Architecture Sub-links -->
+            <div class="flex flex-wrap items-center justify-center gap-3 text-xs font-mono text-zinc-500 mb-16">
+                <span>Direct Links:</span>
+                <a href="https://github.com/abhijeetunreal/Trace/releases/download/v1.0.0.11/trace-v1.0.0.11-universal.apk" class="text-zinc-400 hover:text-ios-blue transition underline underline-offset-4">Universal APK</a>
+                <span>•</span>
+                <a href="https://github.com/abhijeetunreal/Trace/releases" class="text-zinc-400 hover:text-ios-blue transition underline underline-offset-4">arm64-v8a</a>
+                <span>•</span>
+                <a href="https://github.com/abhijeetunreal/Trace/releases" class="text-zinc-400 hover:text-ios-blue transition underline underline-offset-4">SHA-256 Checksums</a>
+            </div>
+
+            <!-- ================= MOBILE SCREEN SHOWCASE (FULL DEVICE) ================= -->
+            <div class="relative w-full max-w-sm sm:max-w-md mx-auto">
+                <!-- Glowing Ambient Halo -->
+                <div class="absolute -inset-8 glow-pedestal rounded-[60px] pointer-events-none"></div>
+
+                <!-- Floating Spec Badges -->
+                <div class="hidden sm:block absolute -left-20 top-24 z-20 bg-zinc-900/90 backdrop-blur-md border border-white/10 rounded-2xl p-3 text-left shadow-2xl float-animation">
+                    <div class="text-[11px] font-mono text-zinc-400">ACCURACY</div>
+                    <div class="text-sm font-bold text-ios-blue">±1.2m Haversine</div>
+                </div>
+
+                <div class="hidden sm:block absolute -right-20 top-40 z-20 bg-zinc-900/90 backdrop-blur-md border border-white/10 rounded-2xl p-3 text-left shadow-2xl float-animation" style="animation-delay: 2s;">
+                    <div class="text-[11px] font-mono text-zinc-400">REFRESH RATE</div>
+                    <div class="text-sm font-bold text-ios-green">10Hz Sampling</div>
+                </div>
+
+                <div class="hidden sm:block absolute -left-16 bottom-48 z-20 bg-zinc-900/90 backdrop-blur-md border border-white/10 rounded-2xl p-3 text-left shadow-2xl float-animation" style="animation-delay: 3s;">
+                    <div class="text-[11px] font-mono text-zinc-400">EXPORT ENGINE</div>
+                    <div class="text-sm font-bold text-amber-400">GPX 1.1 / GeoJSON</div>
+                </div>
+
+                <!-- Complete Smartphone Vector Mockup -->
+                <div class="relative z-10 transition-transform duration-500 hover:scale-[1.02]">
+                    <img src="assets/trace-mobile-mockup.svg" alt="TRACE Mobile App Screen Interface" class="w-full h-auto drop-shadow-[0_25px_60px_rgba(0,122,255,0.3)] mx-auto rounded-[48px]" />
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= USE CASE SCENARIOS ================= -->
+        <section id="use-cases" class="py-16 px-6 max-w-6xl mx-auto border-t border-white/[0.08]">
+            <div class="text-center max-w-2xl mx-auto mb-12">
+                <span class="text-xs font-mono uppercase tracking-wider text-ios-blue font-semibold">Real-World Deployment</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight mt-2 mb-3">Engineered for Every Terrain.</h2>
+                <p class="text-sm text-zinc-400 leading-relaxed">
+                    From racetrack apex telemetry to off-grid alpine climbs, TRACE logs every coordinate and velocity with sub-meter mathematical precision.
+                </p>
+            </div>
+
+            <!-- 4 Concrete Use Cases Bento Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                <!-- Use Case 1: Motorsports -->
+                <div class="bg-zinc-900/60 border border-white/[0.08] hover:border-red-500/40 rounded-3xl p-6 transition-all duration-300 hover:-translate-y-1 group">
+                    <div class="w-12 h-12 rounded-2xl bg-red-500/10 text-ios-red flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-base font-bold text-white mb-2">Track Days &amp; Motorsports</h3>
+                    <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+                        10Hz high-frequency blackbox recording. Capture cornering velocity, apex braking points, acceleration G-forces, and split sector times with zero lag.
+                    </p>
+                    <span class="text-[11px] font-mono text-red-400 font-semibold">10Hz Sampling • Speed Curves</span>
+                </div>
+
+                <!-- Use Case 2: Cycling & Climbs -->
+                <div class="bg-zinc-900/60 border border-white/[0.08] hover:border-blue-500/40 rounded-3xl p-6 transition-all duration-300 hover:-translate-y-1 group">
+                    <div class="w-12 h-12 rounded-2xl bg-blue-500/10 text-ios-blue flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                    </div>
+                    <h3 class="text-base font-bold text-white mb-2">Alpine Cycling &amp; Climbs</h3>
+                    <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+                        Real-time slope grade %, elevation gain accumulation, and synchronized altitude sparklines. Export GPX 1.1 with speed/grade extensions directly into Strava.
+                    </p>
+                    <span class="text-[11px] font-mono text-ios-blue font-semibold">+Grade Math • Strava GPX</span>
+                </div>
+
+                <!-- Use Case 3: Overlanding -->
+                <div class="bg-zinc-900/60 border border-white/[0.08] hover:border-emerald-500/40 rounded-3xl p-6 transition-all duration-300 hover:-translate-y-1 group">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-ios-green flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-base font-bold text-white mb-2">Overlanding &amp; Road Trips</h3>
+                    <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+                        100% offline blackbox recording. Never loses a waypoint through tunnels, canyons, or remote wilderness with screen-off AudioContext &amp; WakeLock keep-alive.
+                    </p>
+                    <span class="text-[11px] font-mono text-ios-green font-semibold">100% Offline • Screen-Off Wake</span>
+                </div>
+
+                <!-- Use Case 4: GIS Surveying -->
+                <div class="bg-zinc-900/60 border border-white/[0.08] hover:border-amber-500/40 rounded-3xl p-6 transition-all duration-300 hover:-translate-y-1 group">
+                    <div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                    </div>
+                    <h3 class="text-base font-bold text-white mb-2">GIS Surveying &amp; Field Data</h3>
+                    <p class="text-xs text-zinc-400 leading-relaxed mb-4">
+                        Standard RFC 7946 GeoJSON LineStrings and RFC 4180 CSV tables with sub-meter timestamps. Zero cloud leaks; ready for immediate import into QGIS or ArcGIS.
+                    </p>
+                    <span class="text-[11px] font-mono text-amber-400 font-semibold">GeoJSON &amp; CSV • QGIS Ready</span>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ================= MINIMAL ARCHITECTURE PILLARS ================= -->
+        <section id="architecture" class="py-16 px-6 max-w-6xl mx-auto border-t border-white/[0.08]">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                <!-- Pillar 1 -->
+                <div class="p-6 rounded-3xl bg-zinc-900/40 border border-white/[0.06]">
+                    <div class="text-xs font-mono text-ios-blue font-bold mb-2">01 / GEODESY CORE</div>
+                    <h3 class="text-lg font-bold text-white mb-2
