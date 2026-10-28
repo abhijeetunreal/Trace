@@ -1056,8 +1056,28 @@ async function triggerNativeFileShare() {
 
     const payload = await buildTelemetryPayload(s, selectedShareFormat);
     const summary = buildShareSummaryText(s);
-    const file = new File([payload.body], payload.filename, { type: payload.mime });
 
+    // 1. Android Native FileProvider Bridge (Inside Tauri APK on device)
+    if (window.AndroidShare && typeof window.AndroidShare.shareFile === 'function') {
+        try {
+            const ok = window.AndroidShare.shareFile(
+                payload.filename,
+                payload.body,
+                payload.mime,
+                `${s.name} Telemetry (${payload.filename})`
+            );
+            if (ok) {
+                showToast(`Opening Device Share Sheet...`);
+                closeShareSheet();
+                return;
+            }
+        } catch (err) {
+            console.warn('AndroidShare.shareFile error:', err);
+        }
+    }
+
+    // 2. Web Share API Level 2 (files support)
+    const file = new File([payload.body], payload.filename, { type: payload.mime });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
             await navigator.share({
@@ -1073,19 +1093,22 @@ async function triggerNativeFileShare() {
         }
     }
 
+    // 3. Web Share API Level 1 (text/url only)
     if (navigator.share) {
         try {
             await navigator.share({
                 title: s.name,
                 text: summary
             });
-            await downloadSelectedFormat();
+            await downloadSelectedFormat(true);
+            closeShareSheet();
             return;
         } catch (err) {
             if (err.name === 'AbortError') return;
         }
     }
 
+    // 4. Browser File Download Fallback
     await downloadSelectedFormat();
 }
 
@@ -1093,23 +1116,64 @@ async function shareToPlatform(platform) {
     const s = savedSessions.find(x => x.id === shareSessionId);
     if (!s) return;
 
+    const payload = await buildTelemetryPayload(s, selectedShareFormat);
     const summary = buildShareSummaryText(s);
-    const encoded = encodeURIComponent(summary);
 
-    await downloadSelectedFormat(true);
+    // 1. Android Native Direct Launch via AndroidShare Bridge
+    if (window.AndroidShare && typeof window.AndroidShare.shareToApp === 'function') {
+        try {
+            const ok = window.AndroidShare.shareToApp(
+                platform,
+                summary,
+                payload.filename,
+                payload.body,
+                payload.mime
+            );
+            if (ok) {
+                const label = platform === 'whatsapp' ? 'WhatsApp' : platform === 'telegram' ? 'Telegram' : platform === 'email' ? 'Mail' : 'Apps';
+                showToast(`Opening ${label}...`);
+                closeShareSheet();
+                return;
+            }
+        } catch (err) {
+            console.warn('AndroidShare.shareToApp error:', err);
+        }
+    }
+
+    // 2. Mobile Browser / Web Fallback: Try native URL schemes first, then web fallbacks
+    const encoded = encodeURIComponent(summary);
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     if (platform === 'whatsapp') {
-        window.open(`https://wa.me/?text=${encoded}`, '_blank');
-        showToast('Opening WhatsApp + downloaded file');
+        await downloadSelectedFormat(true);
+        if (isMobile) {
+            window.location.href = `whatsapp://send?text=${encoded}`;
+            setTimeout(() => {
+                window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+            }, 1000);
+        } else {
+            window.open(`https://web.whatsapp.com/send?text=${encoded}`, '_blank');
+        }
+        showToast('Opening WhatsApp');
     } else if (platform === 'telegram') {
-        window.open(`https://t.me/share/url?url=${encodeURIComponent('https://maps.google.com')}&text=${encoded}`, '_blank');
-        showToast('Opening Telegram + downloaded file');
+        await downloadSelectedFormat(true);
+        if (isMobile) {
+            window.location.href = `tg://msg?text=${encoded}`;
+            setTimeout(() => {
+                window.open(`https://t.me/share/url?url=${encodeURIComponent('https://trace.app')}&text=${encoded}`, '_blank');
+            }, 1000);
+        } else {
+            window.open(`https://t.me/share/url?url=${encodeURIComponent('https://trace.app')}&text=${encoded}`, '_blank');
+        }
+        showToast('Opening Telegram');
     } else if (platform === 'email') {
-        window.location.href = `mailto:?subject=${encodeURIComponent(s.name + ' - GPS Telemetry')}&body=${encoded}`;
-        showToast('Opening Mail + downloaded file');
+        await downloadSelectedFormat(true);
+        const subject = encodeURIComponent(`${s.name} - GPS Telemetry`);
+        window.location.href = `mailto:?subject=${subject}&body=${encoded}`;
+        showToast('Opening Mail');
     } else if (platform === 'copy') {
         copyTextFallback(summary);
-        showToast('Telemetry summary copied');
+        showToast('Telemetry summary copied to clipboard');
     }
     closeShareSheet();
 }
