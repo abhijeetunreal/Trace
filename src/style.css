@@ -1,3 +1,18 @@
+:root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+}
+
+/* Professional Mobile Status Bar & Navigation Insets */
+.app-container {
+    padding-top: max(calc(var(--sat) + 12px), 48px);
+    padding-bottom: max(calc(var(--sab) + 16px), 32px);
+    padding-left: max(var(--sal), 16px);
+    padding-right: max(var(--sar), 16px);
+}
+
 * {
     -webkit-tap-highlight-color: transparent;
     user-select: none;
